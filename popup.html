@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <div class="app">
+    <header class="app-header">
+      <div class="title-row">
+        <span class="title-icon" aria-hidden="true">
+          <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+            <rect x="3" y="4" width="18" height="16" rx="2" ry="2"></rect>
+            <path d="M8 8h8"></path>
+            <path d="M8 12h5"></path>
+            <path d="M8 16h3"></path>
+          </svg>
+        </span>
+        <div class="title">AI Tab Grouper</div>
+      </div>
+      <div class="subtitle">Cluster tabs by intent with local models.</div>
+    </header>
+
+    <div class="card">
+      <div class="field">
+        <label for="modelSelect">Select Model</label>
+        <select id="modelSelect" class="control">
+          <option value="" disabled selected>Loading models...</option>
+        </select>
+      </div>
+
+      <div class="field">
+        <label for="strategySelect">Organization Strategy</label>
+        <select id="strategySelect" class="control">
+          <option value="simple">Simple (broad topics)</option>
+          <option value="medium" selected>Medium (topics + intent)</option>
+          <option value="full">Full (deep context + workflows)</option>
+        </select>
+      </div>
+
+      <button id="groupBtn" class="primary">✨ Group Tabs</button>
+      <div id="status" class="status" role="status" aria-live="polite"></div>
+    </div>
+  </div>
+  <script src="popup.js"></script>
+</body>
+</html>

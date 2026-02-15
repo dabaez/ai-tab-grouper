@@ -1,0 +1,24 @@
+{
+  "manifest_version": 3,
+  "name": "Local AI Tab Grouper Pro",
+  "version": "2.0",
+  "description": "Groups tabs using Ollama with page context.",
+  "permissions": [
+    "tabs",
+    "tabGroups",
+    "scripting" 
+  ],
+  "host_permissions": [
+    "http://localhost:11434/*",
+    "<all_urls>"
+  ],
+  "action": {
+    "default_icon": {
+      "16": "icons/favicon-16x16.png",
+      "32": "icons/favicon-32x32.png",
+      "192": "icons/android-chrome-192x192.png",
+      "512": "icons/android-chrome-512x512.png"
+    },
+    "default_popup": "popup.html"
+  }
+}
