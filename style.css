@@ -177,6 +177,29 @@ label {
   color: var(--muted);
 }
 
+.checkbox-field {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  gap: 8px;
+  margin-top: 2px;
+}
+
+.checkbox-field input[type="checkbox"] {
+  width: 18px;
+  height: 18px;
+  cursor: pointer;
+  accent-color: var(--accent);
+}
+
+.checkbox-field label {
+  font-size: 13px;
+  text-transform: none;
+  letter-spacing: normal;
+  cursor: pointer;
+  margin: 0;
+}
+
 @keyframes rise {
   from {
     opacity: 0;

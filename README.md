@@ -1,151 +1,97 @@
-# 🤖 Local AI Tab Grouper Pro
+# Tab Grouper
 
-A Chromium extension that intelligently groups your browser tabs using AI. Powered by **Ollama**, all processing happens locally on your machine.
+Groups open browser tabs using local AI via Ollama. All processing happens locally.
 
-## ✨ Features
+## What it does
 
-- **Local AI Processing**: Uses Ollama for on-device AI inference (no cloud, no data tracking)
-- **Smart Tab Grouping**: Analyzes page content and context to organize tabs logically
-- **Multiple Organization Strategies**:
-  - **Simple**: Groups by broad topics
-  - **Medium**: Groups by topics + user intent (recommended)
-  - **Full**: Deep context analysis + workflow detection
-- **Model Selection**: Choose from any installed Ollama model
-- **Zero Configuration**: Works out of the box after Ollama setup
+- Takes your open tabs and sends them to a local Ollama model
+- Groups tabs by topic and intent based on page titles and content
+- Creates browser tab groups for you to organize
 
-## 📋 Requirements
+## Requirements
 
-- **Chromium-based browser** (Chrome, Edge, Brave, etc.)
-- **Ollama** installed and running locally
-- At least one LLM model installed in Ollama (e.g., `llama2`, `mistral`, `neural-chat`)
+- Chromium-based browser (Chrome, Edge, Brave, etc.)
+- Ollama installed and running locally
+- At least one LLM model installed (e.g., `llama2`, `mistral`, `neural-chat`)
 
-## 🚀 Quick Start
+## Setup
 
-### 1. Install Ollama
+### 1. Install and configure Ollama
 
-Download and install Ollama from [ollama.ai](https://ollama.ai)
+Download Ollama from [ollama.ai](https://ollama.ai) and set the CORS environment variable before running it.
 
-### 2. Configure Ollama for CORS
-
-The extension needs to communicate with Ollama across origins. You must set the `OLLAMA_ORIGINS` environment variable before starting Ollama.
-
-#### **On macOS/Linux:**
-
+On macOS/Linux:
 ```bash
-# Start Ollama with the required CORS configuration
 OLLAMA_ORIGINS="*" ollama serve
 ```
 
-#### **On Windows (PowerShell):**
-
+On Windows (PowerShell):
 ```powershell
 $env:OLLAMA_ORIGINS="*"
 ollama serve
 ```
 
-#### **On Windows (Command Prompt):**
+To make this permanent, add to your shell config:
+- macOS/Linux: Add `export OLLAMA_ORIGINS="*"` to `~/.zshrc` or `~/.bash_profile`
+- Windows: Set as an environment variable in System Properties
 
-```cmd
-set OLLAMA_ORIGINS=*
-ollama serve
-```
-
-**Or**, set it as a persistent environment variable in your system settings:
-- **macOS**: Add to `~/.zshrc` or `~/.bash_profile`:
-  ```bash
-  export OLLAMA_ORIGINS="*"
-  ```
-- **Linux**: Add to `~/.bashrc` or `~/.zshenv`:
-  ```bash
-  export OLLAMA_ORIGINS="*"
-  ```
-- **Windows**: Use System Properties → Environment Variables (restart required)
-
-### 3. Pull a Model
+### 2. Pull a model
 
 ```bash
 ollama pull llama2
-# or choose another model
-ollama pull mistral
-ollama pull neural-chat
 ```
 
-### 4. Install the Extension
+Other options: `mistral`, `neural-chat`, etc.
 
-#### Chrome/Edge/Brave:
+### 3. Install the extension
 
-1. Open your browser's extension page:
+1. Go to your browser's extensions page:
    - Chrome: `chrome://extensions`
    - Edge: `edge://extensions`
    - Brave: `brave://extensions`
 
-2. Enable **Developer mode** (toggle in top-right corner)
+2. Enable Developer mode
 
-3. Click **"Load unpacked"** and select this repository folder
+3. Click "Load unpacked" and select this folder
 
-4. The extension icon should appear in your toolbar
+### 4. Use it
 
-### 5. Start Grouping!
+1. Make sure Ollama is running
+2. Click the extension icon
+3. Select a model and strategy
+4. Click "Group Tabs"
 
-1. Make sure Ollama is running with `OLLAMA_ORIGINS="*"` set
-2. Click the extension icon in your toolbar
-3. Select your preferred model and organization strategy
-4. Click **✨ Group Tabs** to organize all open tabs in the current window
+## Grouping strategies
 
-## 🎯 How It Works
+**Simple**: Groups by broad topics based on site name.
 
-1. **Tab Analysis**: The extension reads metadata and content from each open tab
-2. **Context Extraction**: Pulls titles, descriptions, keywords, and snippets
-3. **AI Processing**: Sends contextualized summaries to your local Ollama model
-4. **Grouping**: Creates tab groups based on the AI's analysis
-5. **Local Privacy**: All data stays on your machine—nothing is sent to external servers
+**Medium**: Groups by topic and intent using page titles. Better than Simple for mixed-content sites.
 
-## 🛠️ Usage Tips
+**Full**: Uses page descriptions for deeper context. Slower but catches nuance better.
 
-- **Organization Strategies**:
-  - Use **Simple** for quick organization when you have many tabs
-  - Use **Medium** for balanced accuracy and speed (recommended for most users)
-  - Use **Full** for complex workflows with deep context requirements
+All strategies aim for good distribution (typically 2-5 tabs per group, but will create single-tab groups for distinct categories or larger groups if many tabs naturally belong together).
 
-- **Performance**: Grouping speed depends on your hardware and model size. Larger models produce better results but take longer.
+## How it works
 
-## 🔧 Troubleshooting
+1. Reads open tabs (title, URL, and optionally page content)
+2. Sends to local Ollama model
+3. Parses AI response into groups
+4. Creates browser tab groups
 
-### "Error connecting to Ollama"
+## Troubleshooting
 
-- ✅ Make sure Ollama is running
-- ✅ Verify it's started with `OLLAMA_ORIGINS="*"`:
-  ```bash
-  ps aux | grep ollama
-  # Look for OLLAMA_ORIGINS in the process output
-  ```
-- ✅ Check that Ollama is accessible at `http://localhost:11434`
-- ✅ Try `curl http://localhost:11434/api/tags` in a terminal to test the connection
+**"Error connecting to Ollama"**
+- Make sure Ollama is running with `OLLAMA_ORIGINS="*"`
+- Verify with: `curl http://localhost:11434/api/tags`
 
-### "No models found"
+**"No models found"**
+- Run `ollama pull llama2`
+- Check installed models with: `ollama list`
 
-- ✅ Pull at least one model: `ollama pull llama2`
-- ✅ List installed models: `ollama list`
+**Extension doesn't appear**
+- Make sure Developer mode is enabled
+- Try removing and re-adding the extension
 
-### Extension doesn't appear in toolbar
-
-- ✅ Make sure Developer mode is enabled on the extensions page
-- ✅ Try removing and re-adding the extension
-- ✅ Restart your browser
-
-### Tabs aren't grouping correctly
-
-- ✅ Try a different model (larger models usually produce better results)
-- ✅ Try the **Full** organization strategy for complex tabs
-- ✅ Check the browser console (F12) for any error messages
-
-## 📦 Installation for Development
-
-Clone the repository and load it as an unpacked extension:
-
-```bash
-git clone https://github.com/yourusername/ai-tab-grouper.git
-cd ai-tab-grouper
-```
-
-Then follow the "Install the Extension" steps above, selecting this folder.
+**Grouping isn't working well**
+- Try a different model or strategy
+- Check the browser console (F12) for errors

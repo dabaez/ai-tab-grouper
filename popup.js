@@ -27,6 +27,31 @@ async function fetchModels() {
 // Run immediately
 fetchModels();
 
+// Fetch existing tab groups
+async function getExistingGroups() {
+    try {
+        const groups = await chrome.tabGroups.query({ windowId: chrome.windows.WINDOW_ID_CURRENT });
+        const groupsWithTabs = [];
+        
+        for (const group of groups) {
+            const tabs = await chrome.tabs.query({ groupId: group.id });
+            const tabTitles = tabs.map(t => t.title).filter(Boolean);
+            groupsWithTabs.push({
+                id: group.id,
+                title: group.title || "Unnamed Group",
+                color: group.color,
+                collapsed: group.collapsed,
+                tabs: tabTitles
+            });
+        }
+        
+        return groupsWithTabs;
+    } catch (e) {
+        console.error("Error fetching groups:", e);
+        return [];
+    }
+}
+
 async function getPageDescription(tabId) {
     try {
         const results = await chrome.scripting.executeScript({
@@ -57,6 +82,7 @@ document.getElementById('groupBtn').addEventListener('click', async () => {
     const statusEl = document.getElementById('status');
     const modelName = document.getElementById('modelSelect').value;
     const strategyKey = document.getElementById('strategySelect').value || "medium";
+    const shouldExpandGroups = document.getElementById('expandGroupsCheckbox').checked;
     const btn = document.getElementById('groupBtn');
 
     if (!modelName) {
@@ -75,6 +101,13 @@ document.getElementById('groupBtn').addEventListener('click', async () => {
         const tabsForAi = [];
         // Map to find tab ID later
         const titleToIdMap = {};
+
+        // Fetch existing groups if expansion is enabled
+        let existingGroups = [];
+        if (shouldExpandGroups) {
+            statusEl.textContent = "Checking existing groups...";
+            existingGroups = await getExistingGroups();
+        }
 
         // 3. Loop tabs and grab context
         const processingPromises = tabs.map(async (t) => {
@@ -117,6 +150,10 @@ document.getElementById('groupBtn').addEventListener('click', async () => {
         statusEl.textContent = "Thinking...";
 
                 let prompt = "";
+                const groupsContext = shouldExpandGroups && existingGroups.length > 0 
+                    ? `\n\nEXISTING GROUPS:\n${JSON.stringify(existingGroups, null, 2)}\n\nYou may add tabs to existing groups by using their exact title, or create new groups.`
+                    : "";
+                
                 if (strategyKey === "simple") {
                         prompt = `
                         You are a professional Information Architect.
@@ -124,9 +161,10 @@ document.getElementById('groupBtn').addEventListener('click', async () => {
 
                         TAB DATA (JSON):
                         ${JSON.stringify(tabsForAi)}
+                        ${groupsContext}
 
                         INSTRUCTIONS:
-                        1. Create manageable groups with 2-5 tabs each.
+                        1. Create logical groups with good distribution (aim for 2-5 tabs, but allow 1-2 for focused categories or larger if many tabs naturally belong together).
                         2. Ensure every tab is assigned to a group.
                         3. Favor obvious site or high-level category groupings.
                         4. Keep group names short (1-3 words).
@@ -152,9 +190,10 @@ document.getElementById('groupBtn').addEventListener('click', async () => {
 
                         TAB DATA (JSON):
                         ${JSON.stringify(tabsForAi)}
+                        ${groupsContext}
 
                         INSTRUCTIONS:
-                        1. Create manageable groups with 2-5 tabs each.
+                        1. Create logical groups with good distribution (aim for 2-5 tabs, but allow 1-2 for focused categories or larger if many tabs naturally belong together).
                         2. Ensure every tab is assigned to a group.
                         3. Do NOT group purely by site; use title clues to infer topic.
                         4. Split mixed-topic sites into different groups when intent differs.
@@ -183,9 +222,10 @@ document.getElementById('groupBtn').addEventListener('click', async () => {
 
                         TAB DATA (JSON):
                         ${JSON.stringify(tabsForAi)}
+                        ${groupsContext}
 
                         INSTRUCTIONS:
-                        1. Create manageable groups with 2-5 tabs each.
+                        1. Create logical groups with good distribution (aim for 2-5 tabs, but allow 1-2 for focused categories or larger if many tabs naturally belong together).
                         2. Ensure every tab is assigned to a group.
                         3. Use descriptions to infer tasks, projects, and workflows.
                         4. Create precise, non-overlapping groups.
@@ -256,11 +296,23 @@ document.getElementById('groupBtn').addEventListener('click', async () => {
             }
 
             if (idsToGroup.length > 0) {
-                const groupId = await chrome.tabs.group({ tabIds: idsToGroup });
-                await chrome.tabGroups.update(groupId, { 
-                    title: groupName,
-                    collapsed: false 
-                });
+                // Check if this is an existing group we should expand
+                const existingGroup = existingGroups.find(g => g.title === groupName);
+                
+                if (existingGroup && shouldExpandGroups) {
+                    // Add tabs to existing group
+                    await chrome.tabs.group({ 
+                        tabIds: idsToGroup,
+                        groupId: existingGroup.id
+                    });
+                } else {
+                    // Create new group
+                    const groupId = await chrome.tabs.group({ tabIds: idsToGroup });
+                    await chrome.tabGroups.update(groupId, { 
+                        title: groupName,
+                        collapsed: false 
+                    });
+                }
             }
         }
 
