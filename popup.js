@@ -99,8 +99,8 @@ document.getElementById('groupBtn').addEventListener('click', async () => {
         
         // Data structure for the AI
         const tabsForAi = [];
-        // Map to find tab ID later
-        const titleToIdMap = {};
+        // Map index to tab ID for grouping
+        const indexToIdMap = [];
 
         // Fetch existing groups if expansion is enabled
         let existingGroups = [];
@@ -110,33 +110,34 @@ document.getElementById('groupBtn').addEventListener('click', async () => {
         }
 
         // 3. Loop tabs and grab context
+        let tabIndex = 0;
         const processingPromises = tabs.map(async (t) => {
             // Skip chrome:// URLs or empty ones
             if (t.url.startsWith("chrome://") || !t.title) return;
 
             const cleanTitle = t.title.trim();
             const cleanUrl = t.url || "";
+            const currentIndex = tabIndex++;
             
-            // Add to AI list
+            // Add to AI list with index
             if (isFull) {
                 const description = await getPageDescription(t.id);
                 tabsForAi.push({
+                    index: currentIndex,
                     title: cleanTitle,
                     url: cleanUrl,
                     description: description || ""
                 });
             } else {
                 tabsForAi.push({
+                    index: currentIndex,
                     title: cleanTitle,
                     url: cleanUrl
                 });
             }
 
-            // Add to Map
-            if (!titleToIdMap[cleanTitle]) {
-                titleToIdMap[cleanTitle] = [];
-            }
-            titleToIdMap[cleanTitle].push(t.id);
+            // Store tab ID by index
+            indexToIdMap[currentIndex] = t.id;
         });
 
         await Promise.all(processingPromises);
@@ -151,101 +152,114 @@ document.getElementById('groupBtn').addEventListener('click', async () => {
 
                 let prompt = "";
                 const groupsContext = shouldExpandGroups && existingGroups.length > 0 
-                    ? `\n\nEXISTING GROUPS:\n${JSON.stringify(existingGroups, null, 2)}\n\nYou may add tabs to existing groups by using their exact title, or create new groups.`
+                    ? `\n\nEXISTING GROUPS (already organized - for reference only):\n${JSON.stringify(existingGroups, null, 2)}\n\nYou are organizing the tabs in TAB DATA. You may create new groups or match existing group titles if appropriate.`
                     : "";
                 
                 if (strategyKey === "simple") {
                         prompt = `
                         You are a professional Information Architect.
-                        Group tabs into a few simple, broad buckets based only on title and URL.
+                        Group tabs that share clear topical relationships based on title and URL.
 
                         TAB DATA (JSON):
                         ${JSON.stringify(tabsForAi)}
                         ${groupsContext}
 
                         INSTRUCTIONS:
-                        1. Create logical groups with good distribution (aim for 2-5 tabs, but allow 1-2 for focused categories or larger if many tabs naturally belong together).
-                        2. Ensure every tab is assigned to a group.
-                        3. Favor obvious site or high-level category groupings.
-                        4. Keep group names short (1-3 words).
-                        5. Return ONLY a valid JSON object mapping group name to tab titles.
+                        1. Only group tabs when they share a clear topic. It's better to leave tabs ungrouped than force unrelated tabs together.
+                        2. Each group needs at least 2 tabs. Don't create single-tab groups.
+                        3. Keep group names short (1-3 words) and topic-focused.
+                        4. Return raw JSON only - do NOT wrap in markdown code blocks. Format: {"Group Name": [index1, index2]}
+                        5. Omit tabs that don't fit any group.
 
                         Example Input:
                         [
-                            {"title": "BBC News - Home", "url": "https://www.bbc.com/news"},
-                            {"title": "GitHub - Repository", "url": "https://github.com/user/project"},
-                            {"title": "The Guardian", "url": "https://www.theguardian.com"}
+                            {"index": 0, "title": "BBC News - Politics", "url": "https://www.bbc.com/news/politics"},
+                            {"index": 1, "title": "GitHub - My Project", "url": "https://github.com/user/project"},
+                            {"index": 2, "title": "The Guardian - Politics", "url": "https://www.theguardian.com/politics"},
+                            {"index": 3, "title": "Random Article", "url": "https://example.com/random"}
                         ]
 
                         Example Output:
-                        {
-                            "News": ["BBC News - Home", "The Guardian"],
-                            "Work": ["GitHub - Repository"]
-                        }
+                        {"Politics News": [0, 2]}
                         `;
                 } else if (strategyKey === "medium") {
                         prompt = `
                         You are a professional Information Architect.
-                        Group tabs by topics and intent based only on title and URL.
+                        Identify tabs with shared topics or intent using title and URL analysis.
 
                         TAB DATA (JSON):
                         ${JSON.stringify(tabsForAi)}
                         ${groupsContext}
 
                         INSTRUCTIONS:
-                        1. Create logical groups with good distribution (aim for 2-5 tabs, but allow 1-2 for focused categories or larger if many tabs naturally belong together).
-                        2. Ensure every tab is assigned to a group.
-                        3. Do NOT group purely by site; use title clues to infer topic.
-                        4. Split mixed-topic sites into different groups when intent differs.
-                        5. Keep group names short (1-3 words) and use emojis when appropriate (e.g., "🛠️ Dev Tools").
-                        6. Return ONLY a valid JSON object mapping group name to tab titles.
+                        1. ONLY group tabs when they share a clear topical or intentional relationship.
+                        2. It's BETTER to leave tabs ungrouped than to force unrelated tabs together.
+                        3. Each group should contain at least 2 tabs (preferably 3+). Don't create single-tab groups.
+                        4. Prefer grouping by topic/content over website name. Use title clues to understand what each tab is actually about.
+                        5. If many tabs from one site cover different topics (e.g., YouTube videos about cooking vs tech), split them by topic.
+                        6. Website-based grouping is OK for small groups (2-3 tabs) when no better topical grouping exists.
+                        7. For groups larger than 8 tabs, split into more specific sub-topics if possible.
+                        8. Keep group names short (1-3 words), topic-focused, and use emojis when appropriate (e.g., "🛠️ Dev Tools").
+                        9. Return raw JSON only - do NOT wrap in markdown code blocks or backticks.
+                        10. Output format: map group names to arrays of tab indices (numbers).
+                        11. Tabs that don't fit any group should simply be omitted from the output.
 
                         Example Input:
                         [
-                            {"title": "React Hooks Documentation", "url": "https://react.dev"},
-                            {"title": "useEffect Best Practices", "url": "https://react.dev/reference/react/useEffect"},
-                            {"title": "Pasta Carbonara Recipe", "url": "https://cooking.com/recipes/carbonara"},
-                            {"title": "JavaScript Async/Await", "url": "https://developer.mozilla.org/async"}
+                            {"index": 0, "title": "React Hooks Documentation", "url": "https://react.dev"},
+                            {"index": 1, "title": "useEffect Best Practices", "url": "https://react.dev"},
+                            {"index": 2, "title": "How to Make Pasta Carbonara", "url": "https://youtube.com/watch?v=123"},
+                            {"index": 3, "title": "Italian Cooking Basics", "url": "https://cooking.com/italian"},
+                            {"index": 4, "title": "Dog Training Tips", "url": "https://youtube.com/watch?v=456"},
+                            {"index": 5, "title": "Random News Article", "url": "https://news.com/article"}
                         ]
 
                         Example Output:
                         {
-                            "📚 React": ["React Hooks Documentation", "useEffect Best Practices"],
-                            "🍳 Cooking": ["Pasta Carbonara Recipe"],
-                            "💻 JavaScript": ["JavaScript Async/Await"]
+                            "📚 React": [0, 1],
+                            "🍳 Italian Cooking": [2, 3]
                         }
+                        Note: Tabs 4 and 5 are left ungrouped - not enough related content to form meaningful groups.
                         `;
                 } else {
                         prompt = `
                         You are a professional Information Architect.
-                        Group tabs using deep context from title, URL, and description.
+                        Use deep context from title, URL, and description to identify tabs that belong to the same project, workflow, or research topic.
 
                         TAB DATA (JSON):
                         ${JSON.stringify(tabsForAi)}
                         ${groupsContext}
 
                         INSTRUCTIONS:
-                        1. Create logical groups with good distribution (aim for 2-5 tabs, but allow 1-2 for focused categories or larger if many tabs naturally belong together).
-                        2. Ensure every tab is assigned to a group.
-                        3. Use descriptions to infer tasks, projects, and workflows.
-                        4. Create precise, non-overlapping groups.
-                        5. If intent differs, separate even if the site is the same.
-                        6. Keep group names short (1-3 words) and use emojis when appropriate (e.g., "🛠️ Dev Tools").
-                        7. Return ONLY a valid JSON object mapping group name to tab titles.
+                        1. ONLY group tabs when they share a clear project, workflow, or deep topical relationship.
+                        2. It's BETTER to leave tabs ungrouped than to force unrelated tabs together.
+                        3. Each group should contain at least 2 tabs (preferably 3+). Don't create single-tab groups.
+                        4. Prefer grouping by project/topic/intent over website name. Use descriptions to understand the real purpose.
+                        5. If many tabs from one site serve different projects or purposes, split them by project/intent.
+                        6. Website-based grouping is OK for small groups (2-3 tabs) when no better project/workflow grouping exists.
+                        7. Look for workflow patterns: tabs that serve the same research goal, project phase, or task.
+                        8. For groups larger than 8 tabs, consider if they represent distinct sub-projects or phases.
+                        9. Keep group names short (1-3 words), project/intent-focused, and use emojis appropriately (e.g., "🛠️ Dev Setup").
+                        10. Return raw JSON only - do NOT wrap in markdown code blocks or backticks.
+                        11. Output format: map group names to arrays of tab indices (numbers).
+                        12. Tabs that don't fit any group should simply be omitted from the output.
 
                         Example Input:
                         [
-                            {"title": "Q1 Architecture Notes", "url": "https://docs.company.com", "description": "System design decisions for the new microservices platform"},
-                            {"title": "Building Better Apps", "url": "https://amazon.com/Building-Better-Apps", "description": "Book about application architecture patterns"},
-                            {"title": "Competitor Pricing Analysis", "url": "https://sheets.google.com", "description": "Spreadsheet comparing pricing models of top 5 competitors"},
-                            {"title": "User Survey Results Q1", "url": "https://typeform.com/results", "description": "Customer feedback and market research findings"}
+                            {"index": 0, "title": "Q1 Architecture Notes", "url": "https://docs.company.com", "description": "System design decisions for the new microservices platform"},
+                            {"index": 1, "title": "Microservices Book", "url": "https://amazon.com/microservices", "description": "Book about building microservices architecture"},
+                            {"index": 2, "title": "Competitor Analysis", "url": "https://sheets.google.com", "description": "Spreadsheet comparing pricing models of top 5 competitors"},
+                            {"index": 3, "title": "User Survey Q1", "url": "https://typeform.com/results", "description": "Customer feedback and market research findings"},
+                            {"index": 4, "title": "Vacation Photos", "url": "https://photos.google.com", "description": "Personal vacation photos from last summer"},
+                            {"index": 5, "title": "Random Recipe", "url": "https://cooking.com", "description": "Quick dinner recipe for tonight"}
                         ]
 
                         Example Output:
                         {
-                            "🏗️ Build Plan": ["Q1 Architecture Notes", "Building Better Apps"],
-                            "📊 Market Research": ["Competitor Pricing Analysis", "User Survey Results Q1"]
+                            "🏗️ Microservices": [0, 1],
+                            "📊 Market Research": [2, 3]
                         }
+                        Note: Tabs 4 and 5 are left ungrouped - they don't relate to any work project or shared topic.
                         `;
                 }
 
@@ -283,14 +297,14 @@ document.getElementById('groupBtn').addEventListener('click', async () => {
         }
 
         // Apply groups
-        for (const [groupName, titles] of Object.entries(groupings)) {
+        for (const [groupName, indices] of Object.entries(groupings)) {
             const idsToGroup = [];
             
-            // Ensure titles is an array
-            if (Array.isArray(titles)) {
-                titles.forEach(title => {
-                    if (titleToIdMap[title] && titleToIdMap[title].length > 0) {
-                        idsToGroup.push(titleToIdMap[title].shift());
+            // Ensure indices is an array
+            if (Array.isArray(indices)) {
+                indices.forEach(index => {
+                    if (indexToIdMap[index] !== undefined) {
+                        idsToGroup.push(indexToIdMap[index]);
                     }
                 });
             }
