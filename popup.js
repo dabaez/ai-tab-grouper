@@ -14,9 +14,14 @@ async function fetchModels() {
             select.appendChild(option);
         });
 
-        // Optional: auto-select llama3 if available, or the first one
-        const preferred = data.models.find(m => m.name.includes("llama3")) || data.models[0];
-        if (preferred) select.value = preferred.name;
+        // Restore saved model or auto-select llama3 if available, or the first one
+        const saved = await chrome.storage.local.get(['lastModel']);
+        if (saved.lastModel && data.models.find(m => m.name === saved.lastModel)) {
+            select.value = saved.lastModel;
+        } else {
+            const preferred = data.models.find(m => m.name.includes("llama3")) || data.models[0];
+            if (preferred) select.value = preferred.name;
+        }
 
     } catch (e) {
         select.innerHTML = '<option>Error connecting to Ollama</option>';
@@ -24,8 +29,40 @@ async function fetchModels() {
     }
 }
 
+// Restore saved preferences
+async function restorePreferences() {
+    const saved = await chrome.storage.local.get(['lastStrategy', 'lastExpandGroups']);
+    
+    if (saved.lastStrategy) {
+        document.getElementById('strategySelect').value = saved.lastStrategy;
+    }
+    
+    if (saved.lastExpandGroups !== undefined) {
+        document.getElementById('expandGroupsCheckbox').checked = saved.lastExpandGroups;
+    }
+}
+
+// Save preference when changed
+function savePreference(key, value) {
+    chrome.storage.local.set({ [key]: value });
+}
+
 // Run immediately
 fetchModels();
+restorePreferences();
+
+// Listen for changes to save preferences
+document.getElementById('modelSelect').addEventListener('change', (e) => {
+    savePreference('lastModel', e.target.value);
+});
+
+document.getElementById('strategySelect').addEventListener('change', (e) => {
+    savePreference('lastStrategy', e.target.value);
+});
+
+document.getElementById('expandGroupsCheckbox').addEventListener('change', (e) => {
+    savePreference('lastExpandGroups', e.target.checked);
+});
 
 // Fetch existing tab groups
 async function getExistingGroups() {
