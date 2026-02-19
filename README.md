@@ -4,9 +4,18 @@ Groups open browser tabs using local AI via Ollama. All processing happens local
 
 ## What it does
 
-- Takes your open tabs and sends them to a local Ollama model
-- Groups tabs by topic and intent based on page titles and content
-- Creates browser tab groups for you to organize
+- Analyzes your open tabs using a local Ollama model
+- Identifies tabs that share clear topical relationships
+- Creates browser tab groups only when there's genuine clustering
+- Leaves unrelated tabs ungrouped (not everything needs a group!)
+
+## Philosophy
+
+This extension focuses on **meaningful grouping** over forced organization:
+- Only creates groups when tabs genuinely relate to each other
+- Prefers topical clustering over lazy website-based grouping
+- Leaves tabs ungrouped if they don't fit anywhere
+- Requires at least 2 tabs to form a group (no single-tab groups)
 
 ## Requirements
 
@@ -59,24 +68,40 @@ Other options: `mistral`, `neural-chat`, etc.
 1. Make sure Ollama is running
 2. Click the extension icon
 3. Select a model and strategy
-4. Click "Group Tabs"
+4. (Optional) Check "Expand existing groups" to add tabs to current groups
+5. Click "Group Tabs"
+
+Your preferences (model, strategy, expand setting) are automatically saved.
 
 ## Grouping strategies
 
-**Simple**: Groups by broad topics based on site name.
+**Simple**: Fast, basic topical clustering using titles and URLs. Good for quick organization.
 
-**Medium**: Groups by topic and intent using page titles. Better than Simple for mixed-content sites.
+**Medium**: Analyzes titles and URLs to infer intent. Splits tabs from the same site by actual topic (e.g., YouTube videos about cooking vs tech tutorials).
 
-**Full**: Uses page descriptions for deeper context. Slower but catches nuance better.
+**Full**: Uses page descriptions for deep context. Identifies workflows and projects. Slower but best for complex research sessions.
 
-All strategies aim for good distribution (typically 2-5 tabs per group, but will create single-tab groups for distinct categories or larger groups if many tabs naturally belong together).
+**All strategies:**
+- Only group tabs with clear topical relationships
+- Require at least 2 tabs per group
+- Leave unrelated tabs ungrouped
+- Prefer topic-based over site-based grouping
+
+## Features
+
+- **Smart clustering**: Only groups when there's genuine topical similarity
+- **Saved preferences**: Remembers your last model and strategy choice
+- **Expand existing groups**: Add new tabs to your current groups
+- **Local processing**: All AI processing happens on your machine
+- **Index-based matching**: Handles duplicate tab titles correctly
 
 ## How it works
 
-1. Reads open tabs (title, URL, and optionally page content)
-2. Sends to local Ollama model
-3. Parses AI response into groups
-4. Creates browser tab groups
+1. Collects open tabs with index, title, URL, and optionally page content
+2. Sends data to local Ollama model with smart prompts
+3. AI returns groups of tab indices (only tabs with clear relationships)
+4. Creates browser tab groups with descriptive names
+5. Tabs without clear grouping remain ungrouped
 
 ## Troubleshooting
 
@@ -92,6 +117,12 @@ All strategies aim for good distribution (typically 2-5 tabs per group, but will
 - Make sure Developer mode is enabled
 - Try removing and re-adding the extension
 
+**Not all tabs were grouped**
+- This is intentional! The extension only groups tabs with clear topical relationships
+- Ungrouped tabs didn't have enough related content to form meaningful groups
+- Try the Full strategy for more nuanced grouping, or manually organize remaining tabs
+
 **Grouping isn't working well**
-- Try a different model or strategy
+- Try a different model (larger models like `llama3` often perform better)
+- Try a different strategy (Full is most accurate but slower)
 - Check the browser console (F12) for errors
